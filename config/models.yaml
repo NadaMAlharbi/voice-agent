@@ -1,0 +1,37 @@
+# Model sources and download settings.
+
+
+# Ollama manages the LLM models separately
+
+models:
+  silero-vad:
+    kind: bundled
+    package: pipecat.audio.vad.data
+    file: silero_vad.onnx
+    used_by: VAD
+
+  smart-turn-v3:
+    kind: bundled
+    package: pipecat.audio.turn.smart_turn.data
+    file: smart-turn-v3.2-cpu.onnx
+    used_by: end of turn
+
+  whisper-large-v3-turbo:
+    kind: hf
+    repo: mobiuslabsgmbh/faster-whisper-large-v3-turbo
+    required_files: [model.bin, config.json, tokenizer.json]
+    used_by: STT
+
+  kokoro:
+    kind: url                # Kokoro-82M: English speech model
+    urls:
+      kokoro-v1.0.onnx: https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx
+      voices-v1.0.bin: https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
+    used_by: TTS (English)
+
+  xtts-v2:
+    kind: hf                 # XTTS-v2: Arabic speech model
+    repo: coqui/XTTS-v2
+    allow_patterns: [model.pth, config.json, vocab.json, speakers_xtts.pth]
+    required_files: [model.pth, config.json, vocab.json, speakers_xtts.pth]
+    used_by: TTS (Arabic)

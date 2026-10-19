@@ -1,0 +1,85 @@
+[project]
+name = "voice-agent"
+version = "0.1.0"
+description = "Real-time local voice AI agent (Arabic + English)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # >=2.7 is the first release with Blackwell (sm_120, RTX 50xx) kernels.
+    "torch>=2.7",
+    "pyyaml>=6.0",
+    "numpy>=2.0",
+    # Pipecat core bundles Silero VAD + Smart Turn v3.2 ONNX models (offline).
+    "pipecat-ai>=1.12,<2",
+    "huggingface-hub>=0.34",
+    "soundfile>=0.13",
+    "soxr>=1.0",
+    "sounddevice>=0.5",
+    # STT
+    "faster-whisper>=1.2.1",
+    # LLM (Ollama client), weather, model downloads
+    "httpx>=0.27",
+    # TTS: Kokoro (English) + XTTS-v2 (Arabic), built-in voices
+    "kokoro-onnx>=0.6.1",
+    "coqui-tts[codec]>=0.27.5",
+    "transformers>=4.36.0,<5.0.0",   # used by XTTS; kept on 4.x
+    "librosa>=0.10",                 # pitch check in tts-test
+    "torchaudio>=2.7",
+    # Web server
+    "fastapi>=0.115.6",
+    "uvicorn>=0.32",
+    "websockets>=13.1",
+    # Computer control (tools/)
+    "pyautogui>=0.9.54",          # mouse + keyboard (Windows SendInput)
+    "mss>=9.0",                   # fast screenshots
+    "pyperclip>=1.9",             # clipboard (Arabic typing = paste)
+    "psutil>=5.9",                # windows' process names, system status
+    "pillow>=10.0",               # downscale screenshots for the vision model
+    "uiautomation>=2.0.20; sys_platform == 'win32'",   # click buttons by name (accessibility tree)
+    "onnxruntime-gpu>=1.30.0; sys_platform == 'win32' or sys_platform == 'linux'",
+    "onnxruntime>=1.30.0; sys_platform == 'darwin'",
+]
+
+[project.scripts]
+check-env = "voice_agent.check_env:main"
+download-models = "voice_agent.models:download_main"
+verify-models = "voice_agent.models:verify_main"
+record-clip = "voice_agent.record:main"
+vad-test = "voice_agent.turn:main"
+stt-test = "voice_agent.stt.cli:test_main"
+llm-test = "voice_agent.llm:main"
+chunk-test = "voice_agent.chunker:main"
+tts-test = "voice_agent.tts.cli:main"
+serve = "voice_agent.server.app:main"
+ws-probe = "voice_agent.server.probe:main"
+latency-bench = "voice_agent.bench:main"
+tools-test = "voice_agent.tools.cli:tools_main"
+agent-test = "voice_agent.tools.cli:agent_main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/voice_agent"]
+
+# PyPI only ships CPU torch for Windows. Pull CUDA 12.8 builds from the
+# PyTorch index instead (Windows + Linux). macOS falls back to PyPI.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+torchaudio = [{ index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv]
+environments = ["sys_platform == 'win32'"]
+
+
+[tool.pytest.ini_options]
+markers = ["slow: real-model-architecture checks on CPU (minutes)"]
+filterwarnings = ["ignore::DeprecationWarning"]

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HAZEM Voice Agent</title>
+<link rel="icon" href="/static/logo.png">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="va s-idle" id="app">
+
+  <header class="top">
+    <img class="logo" src="/static/logo.png" alt="SAMI Navantia Naval Industries" width="180" height="74">
+    <span class="title">HAZEM Voice Agent</span>
+  </header>
+
+  <main class="stage">
+    <section class="talk">
+      <span class="status" id="state" data-s="idle">READY</span>
+      <div class="captions" id="captions" dir="ltr">
+        <span class="who" id="who"></span>
+        <p class="caption" id="caption" dir="ltr"></p>
+      </div>
+      <div class="confirm" id="confirm">
+        <p id="confirmText" dir="auto"></p>
+        <div class="confirm-buttons">
+          <button type="button" class="yes" id="confirmYes">Yes</button>
+          <button type="button" class="no" id="confirmNo">No</button>
+        </div>
+      </div>
+      <p class="hint" id="hint">Press the microphone and speak Arabic or English</p>
+    </section>
+
+    <button type="button" class="dish" id="orb" aria-label="Start listening" title="Start or stop listening">
+      <span class="dish-bg"></span>
+      <span class="ring-mid"></span>
+      <span class="ring-in"></span>
+      <span class="sweep"></span>
+      <span class="rip"></span><span class="rip b"></span><span class="rip c"></span>
+      <svg class="rings" viewBox="0 0 480 480" aria-hidden="true">
+        <g class="r1"><circle cx="240" cy="240" r="226" class="tick-ring"></circle><path d="M240 14 A226 226 0 0 1 435.7 127" class="arc-accent"></path></g>
+        <g class="r2"><circle cx="240" cy="240" r="190" class="thin-ring"></circle><path d="M50 240 A190 190 0 0 1 105.6 105.6" class="arc-tick"></path><path d="M430 240 A190 190 0 0 1 374.4 374.4" class="arc-tick"></path></g>
+      </svg>
+      <span class="core-level" id="coreLevel"><span class="core"></span></span>
+    </button>
+
+    <div class="side">
+      <div class="side-buttons">
+        <button type="button" class="round" id="setBtn" aria-label="Show settings" title="Settings" aria-expanded="false">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>
+        </button>
+        <button type="button" class="round" id="actBtn" aria-label="Show activity" title="Activity and typed commands" aria-expanded="false">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"></path></svg>
+        </button>
+      </div>
+
+      <aside class="panel" id="settings" aria-label="Settings" hidden>
+        <div class="panel-head">
+          <span>SETTINGS</span>
+          <button type="button" class="close" id="setClose" aria-label="Hide settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+        </div>
+        <div class="field">
+          <span>Language</span>
+          <div class="opts three" role="group" aria-label="Language">
+            <button type="button" class="opt" data-lang="auto" aria-pressed="true">Auto</button>
+            <button type="button" class="opt" data-lang="ar" aria-pressed="false">Arabic</button>
+            <button type="button" class="opt" data-lang="en" aria-pressed="false">English</button>
+          </div>
+        </div>
+        <div class="field">
+          <span>Voice</span>
+          <div class="opts two" role="group" aria-label="Voice">
+            <button type="button" class="opt" id="vFemale" aria-pressed="true">Female</button>
+            <button type="button" class="opt" id="vMale" aria-pressed="false">Male</button>
+          </div>
+          <select id="gender" hidden><option value="female">female</option><option value="male">male</option></select>
+        </div>
+        <div class="field row">
+          <span>Captions</span>
+          <button type="button" class="switch" id="capSwitch" role="switch" aria-checked="true" aria-label="Captions"><span></span></button>
+        </div>
+        <div class="local"><span class="dot"></span>Processing on this device</div>
+      </aside>
+
+      <aside class="panel activity" id="activity" aria-label="Activity" hidden>
+        <div class="panel-head">
+          <span>ACTIVITY</span>
+          <button type="button" class="close" id="actClose" aria-label="Hide activity"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+        </div>
+        <form id="cmd" autocomplete="off">
+          <label for="cmdText">Type a command</label>
+          <div class="cmd-row">
+            <input id="cmdText" dir="auto" placeholder="Command or question" disabled>
+            <button type="submit" id="cmdSend" disabled>Send</button>
+          </div>
+        </form>
+        <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+        <dl class="stats">
+          <div><dt>Mode</dt><dd id="mode">-</dd></div>
+          <div><dt>Reply after speech</dt><dd><span id="lat">-</span> ms</dd></div>
+          <div><dt>Round trip</dt><dd><span id="rtt">-</span> ms</dd></div>
+          <div><dt>Audio buffer</dt><dd><span id="buffered">0</span> ms</dd></div>
+          <div><dt>Old audio dropped</dt><dd><span id="dropped">0</span> ms</dd></div>
+          <div><dt>Time</dt><dd id="clock">--:--</dd></div>
+        </dl>
+        <h3>Conversation</h3>
+        <div class="list" id="chat"></div>
+        <h3>Log</h3>
+        <div class="list" id="log"></div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="dock">
+    <div class="dock-pill">
+      <button type="button" class="mic" id="mic" aria-label="Start listening">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+      </button>
+      <button type="button" class="stopb" id="clear" title="Stop the reply now">
+        <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor"></rect></svg>
+      </button>
+    </div>
+  </footer>
+</div>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

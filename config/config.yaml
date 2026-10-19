@@ -1,0 +1,133 @@
+# All project settings in one place
+
+device: cuda            # cuda | cpu
+gpu_index: 0
+
+paths:
+  models_dir: models
+  logs_dir: logs
+
+server:
+  host: 127.0.0.1
+  port: 8000
+
+audio:
+  input_sample_rate: 16000    # mic -> server (VAD/STT)
+  output_sample_rate: 24000   # server -> browser (TTS output)
+  frame_ms: 20
+
+# Detects when the user is speaking
+vad:
+  confidence: 0.7     # Minimum confidence that audio contains speech
+  start_secs: 0.2     # How long speech must last to start detection
+  stop_secs: 0.2      # Silence duration before checking if the user is done
+  min_volume: 0.72    # Loudness 0..1 (0.72 = -38 LUFS). Higher ignores far voices; lower hears quiet voices.
+                      # The browser log shows your voice level ("voice -27 LUFS") to tune this.
+
+# Detects when the user finishes speaking
+turn:
+  stop_secs: 1.0      # Longest wait when Smart Turn thinks you are not done (was 3.0)
+  pre_speech_ms: 500
+  max_duration_secs: 8
+
+# Converts speech-to-text
+stt:
+  engine: whisper
+  language: auto             # auto | ar | en  (auto: whisper detects, limited to ar/en)
+  whisper:
+    model: whisper-large-v3-turbo   # name in config/models.yaml
+    compute_type: float16
+    beam_size: 1                    # 1 = fastest decoding
+    # Filters that drop made-up text (hallucinations)
+    vad_threshold: 0.5              # Silero speech prob to count as voice inside a segment
+    min_speech_ms: 250              # voiced runs shorter than this (clicks, breaths) are ignored
+    no_speech_threshold: 0.6        # these three are Whisper's own defaults
+    log_prob_threshold: -1.0
+    compression_ratio_threshold: 2.4
+
+# Local LLM via Ollama
+llm:
+  host: http://127.0.0.1:11434
+  model: qwen3.5:9b          # fallback: qwen3:8b
+  think: false               # no hidden reasoning tokens = low latency
+  keep_alive: -1             # keep model loaded in VRAM
+  temperature: 0.6
+  top_p: 0.8                 # Qwen3.5 suggestion; lower = fewer odd words and less language drift
+  top_k: 20
+  presence_penalty: 0.0      # > 0 avoids repeated words (Qwen suggests up to 1.5); test with agent-test first
+  max_tokens: 200            # Upper limit; spoken replies need far less
+  num_ctx: 8192              # Extra context space for tools, chat history, and images
+  cache_friendly: true       # Keeps the main prompt cached between turns
+  system_prompt: >-
+    You are HAZEM, a fast personal AI assistant that runs locally and supports Arabic and English. 
+    Your replies are spoken aloud, so: answer first, with no greeting, no filler like "Sure, here is" and
+    no repeating of the question. Use one to three short sentences and end each one with punctuation.
+    Use plain words: no lists, markdown, emojis, links or code. Do not translate the user's words unless
+    asked. You have no internet and no live data: never invent weather, news, prices or scores; say so in
+    one sentence, then help with general knowledge.
+
+# Converts replies to speech
+tts:
+  # Default voice: language en | ar, gender female | male.
+  # Replies follow the language you speak; the browser buttons switch the gender.
+  language: en
+  gender: female
+  engine: models             # models = Kokoro (English) + XTTS-v2 (Arabic) | tone = test beeps
+
+# Built-in model voices, one per language and gender (no recordings needed)
+  voices:
+    en-american-female: {engine: kokoro, voice: af_heart}
+    en-american-male:   {engine: kokoro, voice: am_michael}
+    ar-female:          {engine: xtts, voice: Ana Florence}
+    ar-male:            {engine: xtts, voice: Damien Black}
+
+  kokoro:                    # English: Kokoro-82M
+    model: kokoro
+    speed: 1.0
+  xtts:                      # Arabic: XTTS-v2
+    model: xtts-v2
+    stream_chunk_tokens: 20  # Audio is sent in pieces of this many tokens while it is generated
+    temperature: 0.65        # Lower = steadier voice (was 0.75)
+    speed: 1.0
+
+# Splits replies into chunks for faster speech playback
+chunker:
+  first_min_chars: 12
+  min_chars: 40
+  soft_min_chars: 60      # Later chunks may end at a comma after this many characters
+  max_chars: 220
+  max_chars_ar: 160       # Arabic chunks stay under XTTS's limit (166), or audio may be cut
+  first_min_chars_ar: 30  # Arabic first chunk may end at a comma only after this many characters
+  min_chars_ar: 80        # Arabic: short sentences are merged up to this (fewer XTTS restarts)
+  first_min_words: 3      # Avoids very short opening chunks and playback gaps
+  first_max_words: 4      # Keeps the first spoken response short
+  second_max_words: 16
+  first_max_words_ar: 8   # XTTS streams, so Arabic chunks can be longer: fewer breaks, more natural voice
+  second_max_words_ar: 24
+
+# Lets the user interrupt the assistant (see server/bargein.py)
+barge_in:
+  min_speech_s: 0.6       # Ignores short noises and coughs
+  echo_threshold: 0.6     # Ignores audio that sounds like the assistant's voice
+  max_echo_lag_s: 0.6     # Maximum delay allowed when checking for echo
+  min_volume: 0.74        # Voices quieter than this (far away, TV) do not interrupt a reply
+
+# Handles computer commands using the router or LLM tools.
+tools:
+  enabled: true
+  desktop: auto              # auto | windows | x11 | dry-run
+  browser: chrome            # chrome | edge
+  screenshots_dir: ~/Pictures/HAZEM
+  data_dir: data             # notes.md, memory.json (local)
+  vision: true               # "what's on my screen" and click_on use the LLM's image input
+  vision_model: ""           # "" = same as llm.model
+  router: true
+  allow_power: true          # shutdown/restart always ask "yes or no" first
+  max_steps: 4
+  home_city: ""              # weather: city used when you do not say one (e.g. Riyadh)
+  # File tools through the official Filesystem MCP server (needs Node.js; see PROJECT_GUIDE.md).
+  # Only this folder can be used. Writing, editing, moving and deleting ask "yes or no" first.
+  files:
+    enabled: true
+    root: ~/Documents/HAZEM
+    command: [npx, -y, --prefer-offline, "@modelcontextprotocol/server-filesystem@2026.8.31"]
