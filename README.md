@@ -95,6 +95,8 @@ voice-agent/
       files.py             file tools (list/read/write/edit/move/delete) on the Filesystem MCP server
       file_access.py       the one allowed folder + its MCP server process
       mcp_client.py        small MCP client (stdio JSON-RPC)
+      mcp_bridge.py        MCP servers from config.yaml -> tools (<server>__<tool>)
+      mcp_cli.py           mcp-test: list / call MCP tools without the voice loop
       router.py            fast English/Arabic command patterns
       speech.py            sentences spoken after router actions and confirmations
       desktop.py           Windows / X11 / dry-run backends
@@ -330,6 +332,7 @@ the downloaded model, and two tests need PyTorch.
 | `uv run tools-test` | Runs the desktop tools for real: opens Notepad, types EN + AR, then closes it |
 | `uv run agent-test` | 26 EN/AR commands through router + LLM (needs Ollama); nothing is executed. `--llm-only` skips the router |
 | `uv run ws-probe tests\audio\en_question.wav` | Streams a wav to a running server and prints the events |
+| `uv run mcp-test` | Starts the MCP servers in `tools.mcp_servers`, lists their tools. `uv run mcp-test calculator add_numbers a=2 b=3` calls one |
 
 Do not touch the mouse or keyboard while `tools-test` runs. Move the mouse to a screen corner to abort.
 
@@ -351,6 +354,20 @@ Setup on Windows:
 
 Without Node.js the file tools are simply not offered (a warning is logged).
 To turn them off: `tools.files.enabled: false`.
+
+## Tools from other projects (MCP)
+
+Any project can add tools by shipping an MCP server: add it under `tools.mcp_servers` in
+`config/config.yaml`, no code change. Example included: `examples/mcp-calculator`
+(tool `calculator__add_numbers`).
+
+```powershell
+uv sync --directory examples/mcp-calculator     # once, needs internet
+uv run mcp-test calculator add_numbers a=2 b=3
+```
+
+Guide: [docs/MCP_GUIDE.md](docs/MCP_GUIDE.md). For other developers:
+[docs/MCP_INTEGRATION_CHECKLIST.md](docs/MCP_INTEGRATION_CHECKLIST.md).
 
 ## Offline use
 
@@ -378,7 +395,9 @@ The LLM is told it has no live data, so it should not invent news, prices or sco
 | It does not hear quiet speech | Look at "voice -NN LUFS" in the activity log. Lower `vad.min_volume` (volume = (LUFS + 110) / 100, minus about 0.05), or open the page with `?agc=1`. |
 | It reacts to people far away or the TV | Raise `vad.min_volume` and `barge_in.min_volume` a little (for example 0.75 / 0.77). A headset helps most. NVIDIA Broadcast noise removal also works. |
 | It answers before I finish a sentence | Raise `turn.stop_secs` (for example 1.5). |
-| `kokoro-82M onnx (cpu) WARNING` in the log | Run `uv run check-env`; see the "ONNX Runtime" line for the fix. |
+| `kokoro-82M onnx (cpu) WARNING` in the log | Run `uv run check-env`; see the "ONNX Runtime" and "Kokoro GPU" lines for the fix. |
+| `cublasLt64_13.dll ... missing` (Kokoro on CPU) | onnxruntime-gpu 1.27+ on PyPI is built for CUDA 13; torch here is CUDA 12.8. `pyproject.toml` pins `onnxruntime-gpu<1.27`: run `uv sync --reinstall-package onnxruntime-gpu`. |
+| `tools: file server failed to start (...)` | The message now ends with what the MCP server printed (`Server said: ...`). Old builds showed only `[Errno 22] Invalid argument`. |
 | Arabic voice has an accent | Try other XTTS speakers in `tts.voices` and compare with `uv run tts-test`. |
 | Typing goes to the wrong window | Click the target app once before the command; check the activity log for `into ...`. |
 | "Windows accepted only N of M key events" | The target app runs as administrator. Run HAZEM as administrator too. |

@@ -167,6 +167,8 @@ def run_all(cfg_path: Path | None = None) -> list[Check]:
     checks.extend(check_torch_gpu(torch, cfg.gpu_index if cfg else 0))
     if torch.cuda.is_available():
         checks.extend(check_libraries())
+        if cfg is not None:
+            checks.append(check_kokoro(cfg))
     return checks
 
 
@@ -197,11 +199,69 @@ def check_libraries() -> list[Check]:
     return out
 
 
-def check_onnxruntime(versions: dict | None = None, providers: list[str] | None = None) -> Check:
+def _varint(n: int) -> bytes:
+    out = b""
+    while True:
+        b, n = n & 0x7F, n >> 7
+        out += bytes([b | (0x80 if n else 0)])
+        if not n:
+            return out
+
+
+def _field(num: int, value) -> bytes:
+    """One protobuf field: int -> varint, bytes/str -> length-delimited."""
+    if isinstance(value, int):
+        return _varint(num << 3) + _varint(value)
+    data = value.encode() if isinstance(value, str) else value
+    return _varint((num << 3) | 2) + _varint(len(data)) + data
+
+
+def tiny_matmul_onnx(n: int = 64) -> bytes:
+    """A one-node ONNX model, Y = A @ B (float [n, n]), built without the onnx package.
+
+    MatMul on the CUDA provider calls cuBLAS, so running it proves the CUDA,
+    cuBLAS/cuBLASLt and cuDNN DLLs that onnxruntime-gpu was built against really load.
+    """
+    def value_info(name: str) -> bytes:
+        dims = b"".join(_field(1, _field(1, n)) for _ in range(2))          # Dimension.dim_value
+        tensor = _field(1, 1) + _field(2, dims)                              # elem_type FLOAT, shape
+        return _field(1, name) + _field(2, _field(1, tensor))                # name, TypeProto.tensor_type
+    node = _field(1, "A") + _field(1, "B") + _field(2, "Y") + _field(4, "MatMul")
+    graph = (_field(1, node) + _field(2, "probe") + _field(11, value_info("A"))
+             + _field(11, value_info("B")) + _field(12, value_info("Y")))
+    opset = _field(1, "") + _field(2, 13)
+    return _field(1, 8) + _field(8, opset) + _field(7, graph)               # ir_version 8, opset 13
+
+
+def probe_ort_cuda() -> tuple[list[str], float]:
+    """Run a real MatMul on the CUDA provider. Returns (session providers, max abs error)."""
+    import numpy as np
+    import onnxruntime as rt
+
+    from voice_agent import cuda_dlls
+
+    cuda_dlls.prepare()
+    so = rt.SessionOptions()
+    so.log_severity_level = 3            # the CUDA load error is reported by us, not printed twice
+    sess = rt.InferenceSession(tiny_matmul_onnx(), so,
+                               providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+    rng = np.random.default_rng(0)
+    a, b = (rng.standard_normal((64, 64), dtype=np.float32) for _ in range(2))
+    (y,) = sess.run(None, {"A": a, "B": b})
+    return sess.get_providers(), float(np.abs(y - a @ b).max())
+
+
+def check_onnxruntime(versions: dict | None = None, providers: list[str] | None = None,
+                      probe=probe_ort_cuda) -> Check:
     """Kokoro (English TTS) runs on ONNX Runtime. It needs the GPU build to use CUDA.
 
-    Pipecat also installs the CPU build ("onnxruntime"). Both write the same folder,
-    so the CPU one can replace the GPU files. Then Kokoro silently runs on the CPU.
+    Two ways it silently ends up on the CPU:
+      - pipecat/faster-whisper/kokoro-onnx want the CPU build ("onnxruntime"). Both
+        write the same folder, so the CPU one can replace the GPU files.
+        pyproject.toml drops it with [tool.uv] override-dependencies.
+      - onnxruntime-gpu is built for another CUDA major than torch (PyPI 1.27+ is
+        CUDA 13, torch cu128 is CUDA 12): "cublasLt64_13.dll is missing".
+    get_available_providers() lists CUDA in both cases, so we build a real session.
     """
     import importlib.metadata as md
 
@@ -219,13 +279,58 @@ def check_onnxruntime(versions: dict | None = None, providers: list[str] | None 
             providers = rt.get_available_providers()
         except Exception as e:  # noqa: BLE001
             return Check("ONNX Runtime", FAIL, f"not importable: {e}")
-    has_cuda = "CUDAExecutionProvider" in providers
     info = f"{versions}, providers {providers}"
-    if has_cuda:
+    fix = "fix: `uv sync --reinstall-package onnxruntime-gpu` (pyproject pins a CUDA 12 build)"
+    if "onnxruntime" in versions and "onnxruntime-gpu" in versions:
+        return Check("ONNX Runtime", WARN, f"CPU and GPU builds both installed, they overwrite each other. {info}. "
+                     "fix: `uv sync` (removes the CPU build), then "
+                     "`uv sync --reinstall-package onnxruntime-gpu`")
+    if "CUDAExecutionProvider" not in providers:
+        return Check("ONNX Runtime", WARN, f"no CUDA provider, Kokoro will use the CPU. {info}. {fix}")
+    if probe is None:
         return Check("ONNX Runtime", PASS, info)
-    fix = ("fix: `uv pip uninstall onnxruntime onnxruntime-gpu` then "
-           f"`uv pip install onnxruntime-gpu=={versions.get('onnxruntime-gpu', '1.30.0')}`")
-    return Check("ONNX Runtime", WARN, f"no CUDA provider, Kokoro will use the CPU. {info}. {fix}")
+    from voice_agent.tts.kokoro_engine import cuda_mismatch_hint
+
+    gpu_version = versions.get("onnxruntime-gpu", "")
+    try:
+        got, err = probe()
+    except Exception as e:  # noqa: BLE001
+        return Check("ONNX Runtime", WARN, f"CUDA test session failed ({type(e).__name__}: {e}). {info}. "
+                     f"{cuda_mismatch_hint(gpu_version)} {fix}")
+    if not got or got[0] != "CUDAExecutionProvider":
+        return Check("ONNX Runtime", WARN, f"CUDA provider did not load (session uses {got}), Kokoro will use "
+                     f"the CPU. {info}. {cuda_mismatch_hint(gpu_version)} {fix}")
+    if err > 1e-2:
+        return Check("ONNX Runtime", FAIL, f"CUDA MatMul result is wrong (max error {err:.3g}). {info}")
+    return Check("ONNX Runtime", PASS, f"{info}; CUDA MatMul test OK")
+
+
+def check_kokoro(cfg: Config) -> Check:
+    """Load Kokoro the way the server does and run one real synthesis on the GPU."""
+    try:
+        from voice_agent.models import load_registry, model_path
+
+        spec = load_registry()[cfg.tts.kokoro.get("model", "kokoro")]
+        folder = model_path(spec, cfg.paths.models_dir)
+        if not (folder / "kokoro-v1.0.onnx").is_file():
+            return Check("Kokoro GPU", WARN, f"model not downloaded ({folder}); run `uv run download-models`")
+        from kokoro_onnx import Kokoro
+
+        from voice_agent.tts.kokoro_engine import LANG_CODE, make_session
+
+        sess = make_session(folder / "kokoro-v1.0.onnx", cfg.device)
+        model = Kokoro.from_session(sess, str(folder / "voices-v1.0.bin"))
+        voice = sorted(model.get_voices())[0]
+        model.create("Hello.", voice=voice, lang=LANG_CODE)          # warm-up (CUDA kernels)
+        t0 = time.perf_counter()
+        audio, sr = model.create("This sentence checks the GPU.", voice=voice, lang=LANG_CODE)
+        ms = (time.perf_counter() - t0) * 1000
+        got = sess.get_providers()
+        detail = f"providers {got}, {len(audio) / sr:.1f}s audio in {ms:.0f} ms"
+        ok = bool(got) and got[0] == "CUDAExecutionProvider"
+        return Check("Kokoro GPU", PASS if ok else WARN, detail if ok else f"runs on the CPU: {detail}")
+    except Exception as e:  # noqa: BLE001
+        return Check("Kokoro GPU", WARN, f"{type(e).__name__}: {e}")
 
 
 def print_report(checks: list[Check]) -> None:

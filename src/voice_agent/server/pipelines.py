@@ -64,12 +64,17 @@ def make_agent(cfg: Config, desktop, vision=None):
     """Per connection: tools bound to the shared desktop backend (timers belong to the session)."""
     from voice_agent.server.agent import Agent
     from voice_agent.tools.file_access import make_files
+    from voice_agent.tools.mcp_bridge import shared_hub
     from voice_agent.tools.toolbox import Toolbox
 
     if desktop is None or not cfg.tools.enabled:
         return None
+    try:
+        hub = shared_hub(cfg.tools.mcp_servers)     # started once in app.py; bad config is logged there
+    except ValueError:
+        hub = None
     tb = Toolbox(desktop, cfg.tools.data_dir, vision=vision, allow_power=cfg.tools.allow_power,
-                 home_city=cfg.tools.home_city, files=make_files(cfg.tools.files))
+                 home_city=cfg.tools.home_city, files=make_files(cfg.tools.files), mcp=hub)
     return Agent(tb, use_router=cfg.tools.router, max_steps=cfg.tools.max_steps)
 
 

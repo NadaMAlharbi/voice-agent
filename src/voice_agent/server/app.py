@@ -12,6 +12,7 @@ Models load once at startup and are warmed up, so the first reply is as fast as 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import sys
 import time
 from contextlib import asynccontextmanager
@@ -79,11 +80,17 @@ def create_app(mode: str, cfg: Config | None = None, stt_engine=None, llm_factor
                 state["tts"] = tts
         if mode in ("chat", "assistant") and cfg.tools.enabled:
             _setup_tools(cfg, state)
+            hub = state.get("mcp")
+            if hub is not None and not await asyncio.to_thread(hub.wait, cfg.tools.mcp_wait_s):
+                logger.warning(f"tools: MCP servers not ready after {cfg.tools.mcp_wait_s:.0f}s; "
+                               "their tools are added for new connections once they are")
             if llm_factory is None:      # real Ollama: cache the exact system prompt + tool schemas
                 await _warm_llm_with_tools(cfg, state)
         logger.info(f"ready: mode={mode}")
         yield
         state["stop_tracker"] = True
+        if state.get("mcp") is not None:
+            state["mcp"].close()         # stop the MCP server processes
 
     app = FastAPI(lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
@@ -201,7 +208,7 @@ def _setup_tools(cfg: Config, state: dict) -> None:
             return
         try:
             t0 = time.perf_counter()
-            n = len(fs.client.list_tools())
+            n = len(fs.list_tools())     # fs.list_tools creates the folder first
             logger.info(f"tools: file tools ready (MCP {fs.client.server_info.get('name', '?')}, {n} server tools) "
                         f"for {fs.root} in {time.perf_counter() - t0:.1f}s")
         except Exception as e:  # noqa: BLE001
@@ -211,6 +218,34 @@ def _setup_tools(cfg: Config, state: dict) -> None:
     if not isinstance(desk, DryRunDesktop):
         threading.Thread(target=track, daemon=True).start()
         threading.Thread(target=start_files, daemon=True).start()
+        _start_mcp_servers(cfg, state)
+
+
+def _start_mcp_servers(cfg: Config, state: dict) -> None:
+    """Servers from tools.mcp_servers (tools/mcp_bridge.py), started in parallel in the background."""
+    from voice_agent.tools.mcp_bridge import shared_hub
+
+    try:
+        hub = shared_hub(cfg.tools.mcp_servers)
+    except ValueError as e:
+        logger.error(f"tools: MCP servers off, bad config.yaml tools.mcp_servers: {e}")
+        return
+    if hub is None:
+        return
+
+    def report(statuses):
+        for st in statuses:
+            if st.state == "ready":
+                names = ", ".join(f"{st.name}__{t['name']}" for t in st.tools) or "no tools"
+                logger.info(f"tools: MCP {st.name} ready in {st.seconds:.1f}s "
+                            f"({st.server_info.get('name', '?')}): {names}")
+                if st.missing:
+                    logger.warning(f"tools: MCP {st.name} has no tool(s) {st.missing} (check tools: in config)")
+            elif st.state == "failed":
+                logger.warning(f"tools: MCP {st.name} failed to start ({st.error})")
+
+    state["mcp"] = hub
+    hub.start_background(report)
 
 
 def _warm_tts(tts, voices) -> None:

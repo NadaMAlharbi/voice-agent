@@ -36,11 +36,14 @@ class Tool:
     required: list[str] = field(default_factory=list)
     risk: str | Callable[[dict], str] = SAFE           # or a function of the arguments
     timeout_s: float = 20.0
+    defs: dict = field(default_factory=dict)           # JSON schema "$defs" (MCP tools with nested types)
 
     def schema(self) -> dict:
+        params = {"type": "object", "properties": self.parameters, "required": self.required}
+        if self.defs:
+            params["$defs"] = self.defs
         return {"type": "function", "function": {
-            "name": self.name, "description": self.description,
-            "parameters": {"type": "object", "properties": self.parameters, "required": self.required}}}
+            "name": self.name, "description": self.description, "parameters": params}}
 
     def risk_of(self, args: dict) -> str:
         return self.risk(args) if callable(self.risk) else self.risk

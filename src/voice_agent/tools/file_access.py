@@ -37,8 +37,14 @@ class Files:
         return shutil.which(self.command[0]) is not None
 
     def start(self) -> None:
+        # The server exits at once ("None of the specified directories are accessible")
+        # when the folder does not exist, so it must be created before every start.
         self.root.mkdir(parents=True, exist_ok=True)
         self.client.start()
+
+    def list_tools(self) -> list[dict]:
+        self.start()
+        return self.client.list_tools()
 
     def path(self, rel: str) -> Path:
         """User path -> absolute path inside the root. Raises ValueError outside it."""

@@ -35,8 +35,13 @@ dependencies = [
     "psutil>=5.9",                # windows' process names, system status
     "pillow>=10.0",               # downscale screenshots for the vision model
     "uiautomation>=2.0.20; sys_platform == 'win32'",   # click buttons by name (accessibility tree)
-    "onnxruntime-gpu>=1.30.0; sys_platform == 'win32' or sys_platform == 'linux'",
-    "onnxruntime>=1.30.0; sys_platform == 'darwin'",
+    # Kokoro (ONNX). Must use the SAME CUDA major as torch (cu128 = CUDA 12, cuDNN 9).
+    # From 1.27 on, PyPI onnxruntime-gpu is built for CUDA 13 (needs cublasLt64_13.dll,
+    # which torch cu128 does not ship), so Kokoro would fall back to the CPU.
+    # 1.26.x is the newest PyPI build linked against CUDA 12 (cublasLt64_12.dll, cudnn64_9.dll).
+    # Raise this cap only together with moving torch to a CUDA 13 index.
+    "onnxruntime-gpu>=1.24,<1.27; sys_platform == 'win32' or sys_platform == 'linux'",
+    "onnxruntime>=1.24; sys_platform == 'darwin'",
 ]
 
 [project.scripts]
@@ -54,6 +59,7 @@ ws-probe = "voice_agent.server.probe:main"
 latency-bench = "voice_agent.bench:main"
 tools-test = "voice_agent.tools.cli:tools_main"
 agent-test = "voice_agent.tools.cli:agent_main"
+mcp-test = "voice_agent.tools.mcp_cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]
@@ -78,6 +84,10 @@ explicit = true
 
 [tool.uv]
 environments = ["sys_platform == 'win32'"]
+# pipecat-ai, faster-whisper and kokoro-onnx depend on the CPU "onnxruntime".
+# It installs into the same onnxruntime/ folder as onnxruntime-gpu and can overwrite
+# the GPU files. Drop it on Windows/Linux (onnxruntime-gpu provides the module there).
+override-dependencies = ["onnxruntime>=1.24; sys_platform == 'darwin'"]
 
 
 [tool.pytest.ini_options]

@@ -113,6 +113,9 @@ class Agent:
         if self.registry.get("list_files") is not None:
             note += ("\nFiles: only in the user's file folder. If you are not sure of a file name, "
                      "call list_files first.")
+        hints = self.toolbox.mcp.hints() if self.toolbox.mcp is not None else []
+        if hints:
+            note += "\nTools from other projects (their names contain __):\n" + "\n".join(f"- {h}" for h in hints)
         facts = self.toolbox.memory.facts()
         if facts:
             note += "\nThings the user asked you to remember:\n" + "\n".join(f"- {f}" for f in facts[-20:])

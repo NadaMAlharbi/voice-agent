@@ -2,6 +2,9 @@
 
 To add a tool: create tools/<feature>.py with handler functions and a `tools(tb)` function
 returning Tool(...) entries, then add the module to FEATURES below.
+
+Tools from other projects come through MCP instead: add the server to tools.mcp_servers
+in config.yaml (tools/mcp_bridge.py). No code change is needed for those.
 """
 
 from __future__ import annotations
@@ -45,7 +48,7 @@ class Toolbox:
 
     def __init__(self, desktop: Desktop, data_dir: Path, vision=None,
                  scheduler: Callable[[float, str], str] | None = None, allow_power: bool = True,
-                 home_city: str = "", files=None):
+                 home_city: str = "", files=None, mcp=None):
         self.desktop = desktop
         self.data_dir = Path(data_dir)
         self.vision = vision
@@ -55,9 +58,13 @@ class Toolbox:
         self.allow_power = allow_power
         self.home_city = home_city          # default city for the weather tool
         self.files = files                  # tools/files.py Files (MCP), or None
+        self.mcp = mcp                      # tools/mcp_bridge.py McpHub (servers from config), or None
         self._resolver: AppResolver | None = None
         self._resolver_lock = threading.Lock()
         self.registry = ToolRegistry([t for f in FEATURES for t in f.tools(self)])
+        for t in (mcp.tools() if mcp is not None else []):   # only servers that are ready
+            if self.registry.get(t.name) is None:           # a built-in tool always wins
+                self.registry.add(t)
 
     def warm(self) -> None:
         # This function indexes installed apps in the background (about 1 s on Windows).

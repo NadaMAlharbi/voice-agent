@@ -147,6 +147,18 @@ button, input, select { font: inherit; }
 .stats div { display: flex; justify-content: space-between; gap: 6px; }
 .stats dt { opacity: .8; } .stats dd { margin: 0; font-variant-numeric: tabular-nums; }
 .list { overflow-y: auto; min-height: 60px; max-height: 18vh; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+/* Thin, theme-coloured scrollbars for the activity panel, its conversation and its log (look only).
+   Chrome/Edge use the ::-webkit-scrollbar rules; Firefox uses the standard properties. They are kept
+   apart because Chrome ignores the ::-webkit-scrollbar rules when scrollbar-width/color are set. */
+.activity::-webkit-scrollbar, .activity .list::-webkit-scrollbar { width: 6px; height: 6px; }
+.activity::-webkit-scrollbar-track, .activity .list::-webkit-scrollbar-track,
+.activity::-webkit-scrollbar-corner, .activity .list::-webkit-scrollbar-corner { background: transparent; }
+.activity::-webkit-scrollbar-thumb, .activity .list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+.activity::-webkit-scrollbar-thumb:hover, .activity .list::-webkit-scrollbar-thumb:hover { background: var(--tick); }
+.activity::-webkit-scrollbar-thumb:active, .activity .list::-webkit-scrollbar-thumb:active { background: var(--green); }
+@supports not selector(::-webkit-scrollbar) {
+  .activity, .activity .list { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+}
 .msg { padding: 6px 9px; border-radius: 10px; unicode-bidi: plaintext; }
 .msg.you { align-self: flex-end; background: rgba(114,190,68,.22); max-width: 92%; }
 .msg.bot { align-self: flex-start; background: rgba(0,0,0,.16); max-width: 95%; }

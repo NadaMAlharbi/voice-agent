@@ -117,6 +117,8 @@ class Tools:
     max_steps: int = 4               # LLM <-> tool rounds per reply
     home_city: str = ""              # weather tool: city used when none is said
     files: dict = field(default_factory=dict)   # file tools via the Filesystem MCP server (tools/files.py)
+    mcp_servers: dict = field(default_factory=dict)   # other MCP servers: name -> settings (tools/mcp_bridge.py)
+    mcp_wait_s: float = 15.0         # at startup, wait this long for MCP servers before warming the LLM
 
 
 @dataclass(frozen=True)
