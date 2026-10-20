@@ -1,6 +1,6 @@
 """Headless test client: streams wav files to the server like a mic, prints what comes back.
 
-  uv run ws-probe tests\\audio\\en_question.wav                       (any mode)
+  uv run ws-probe recordings\\en_question.wav                       (any mode)
   uv run ws-probe recordings\\en_complete.wav --barge-in recordings\\ar_complete.wav --after 1.0
       -> in assistant mode: speaks the 2nd clip 1.0 s after the assistant starts talking
 

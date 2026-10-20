@@ -32,10 +32,10 @@ STATIC = Path(__file__).parent / "static"
 
 def create_app(mode: str, cfg: Config | None = None, stt_engine=None, llm_factory=None,
                tts_engine=None, record_dir=None, live_provider=None, desktop=None, vision=None) -> FastAPI:
-    """Pass engines in (tests), or leave None to load from config when the mode needs them.
+    """Pass ready engines in, or leave None to load from config when the mode needs them.
 
     llm_factory: callable returning a fresh LLM client per connection.
-    desktop: tools backend (tests pass DryRunDesktop); None = from config (tools.desktop).
+    desktop: tools backend (e.g. DryRunDesktop); None = from config (tools.desktop).
     """
     cfg = cfg or load_config()
     state: dict = {"stt": stt_engine, "llm_factory": llm_factory, "tts": tts_engine, "voices": None,
@@ -204,7 +204,7 @@ def _setup_tools(cfg: Config, state: dict) -> None:
             return
         fs = make_files(cfg.tools.files)
         if fs is None:
-            logger.warning("tools: file tools are off: Node.js (npx) not found. See PROJECT_GUIDE.md, MCP")
+            logger.warning("tools: file tools are off: Node.js (npx) not found. See README.md, File tools")
             return
         try:
             t0 = time.perf_counter()

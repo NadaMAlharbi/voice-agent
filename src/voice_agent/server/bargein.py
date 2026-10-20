@@ -173,7 +173,6 @@ class BargeInStartStrategy(BaseUserTurnStartStrategy):
         self._last_eval = 0
         self._mic: list[np.ndarray] = []   # raw 16 kHz mic audio of the candidate segment
         self._mic_n = 0
-        self.decisions: list[dict] = []  # for tests and diagnostics
 
     async def handle_user_turn_started(self):
         self._in_turn = True
@@ -266,14 +265,12 @@ class BargeInStartStrategy(BaseUserTurnStartStrategy):
 
     async def _start(self, reason: str, **info) -> ProcessFrameResult:
         self._candidate = False
-        self.decisions.append({"decision": "start", "reason": reason, **info})
         if reason == "barge-in":
             logger.info(f"barge-in accepted {info}")
         await self.trigger_user_turn_started()
         return ProcessFrameResult.STOP
 
     async def _report(self, reason: str, **info) -> None:
-        self.decisions.append({"decision": "ignore", "reason": reason, **info})
         logger.info(f"barge-in ignored: {reason} {info}")
         await self.push_frame(OutputTransportMessageUrgentFrame(
             message={"type": "barge_in_ignored", "reason": reason, **info}))

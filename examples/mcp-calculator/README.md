@@ -1,50 +1,56 @@
-# mcp-calculator: the smallest useful MCP server
+# mcp-calculator
 
-An independent project with one MCP tool, `add_numbers(a, b)`. HAZEM starts it as a
-child process and talks to it over stdio. Copy this folder to start a new MCP server.
+A small, independent MCP server with one tool: `add_numbers(a, b)`.
+It shows how another project can give HAZEM new tools. Copy this folder to start your own server.
 
 ```
 examples/mcp-calculator/
-  pyproject.toml                  its own dependencies (only "mcp"), its own uv.lock
+  pyproject.toml                  its own dependencies (only "mcp") and its own uv.lock
   src/mcp_calculator/server.py    the server: one decorated function = one tool
 ```
 
-## Run and test it on its own
+## Run it
 
 ```powershell
 cd examples\mcp-calculator
-uv sync                                   # first time only, needs internet (installs "mcp")
-uv run mcp-calculator                     # starts and waits on stdin; nothing is printed. Ctrl+C to stop.
+uv sync                  # once, needs internet (installs "mcp")
+uv run mcp-calculator    # starts and waits for MCP messages on stdin. Ctrl+C to stop.
 ```
 
-Interactive test page (needs Node.js), no HAZEM involved:
+Nothing is printed on start. This is normal: stdout is used only for MCP messages.
+
+## Check it
+
+On its own, with the MCP Inspector web page (needs Node.js):
 
 ```powershell
 npx @modelcontextprotocol/inspector uv run --directory examples/mcp-calculator mcp-calculator
 ```
 
-From the HAZEM project folder, through HAZEM's own MCP client:
+Through HAZEM, from the HAZEM project folder:
 
 ```powershell
-uv run mcp-test                                            # lists servers and tools
-uv run mcp-test calculator add_numbers "{\"a\": 2, \"b\": 3}"
+uv run mcp-test calculator                      # starts the server, lists its tools
+uv run mcp-test calculator add_numbers a=2 b=3  # calls the tool
 ```
 
 ## What the tool returns
 
 | Call | Result |
 |---|---|
-| `add_numbers(a=2, b=3)` | `isError: false`, `structuredContent: {"a": 2, "b": 3, "sum": 5}` |
-| `add_numbers(a="x", b=3)` | `isError: true`, "Input should be a valid number" (checked by the SDK from the type hints) |
-| `add_numbers(a=1e308, b=1e308)` | `isError: true`, "the numbers are too large or not finite" (our `ToolError`) |
+| `add_numbers(a=2, b=3)` | `{"a": 2, "b": 3, "sum": 5}` |
+| `add_numbers(a="x", b=3)` | Error: "Input should be a valid number" |
+| `add_numbers(a=1e308, b=1e308)` | Error: "the numbers are too large or not finite" |
 
-## Make your own tool
+## Write your own tool
 
 ```python
-@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))   # readOnlyHint: HAZEM may skip "yes or no"
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))   # read-only: HAZEM does not ask "yes or no"
 def my_tool(city: str, days: int = 1) -> MyResult:           # type hints become the input schema
-    """One clear sentence: what it does and when to use it."""  # the docstring becomes the description
+    """One clear sentence: what it does and when to use it."""  # the docstring is what the LLM reads
     ...
     raise ToolError("reason the user should hear")            # expected failure
-    return {...}                                              # TypedDict -> structuredContent
+    return {...}                                              # a TypedDict becomes JSON for HAZEM
 ```
+
+To connect it to HAZEM, follow [MCP_GUIDE.md](../../MCP_GUIDE.md).

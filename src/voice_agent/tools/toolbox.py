@@ -66,10 +66,6 @@ class Toolbox:
             if self.registry.get(t.name) is None:           # a built-in tool always wins
                 self.registry.add(t)
 
-    def warm(self) -> None:
-        # This function indexes installed apps in the background (about 1 s on Windows).
-        threading.Thread(target=self.resolver, daemon=True).start()
-
     def resolver(self) -> AppResolver:
         with self._resolver_lock:
             if self._resolver is None:

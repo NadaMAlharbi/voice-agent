@@ -61,9 +61,6 @@ tools-test = "voice_agent.tools.cli:tools_main"
 agent-test = "voice_agent.tools.cli:agent_main"
 mcp-test = "voice_agent.tools.mcp_cli:main"
 
-[dependency-groups]
-dev = ["pytest>=8"]
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -88,8 +85,3 @@ environments = ["sys_platform == 'win32'"]
 # It installs into the same onnxruntime/ folder as onnxruntime-gpu and can overwrite
 # the GPU files. Drop it on Windows/Linux (onnxruntime-gpu provides the module there).
 override-dependencies = ["onnxruntime>=1.24; sys_platform == 'darwin'"]
-
-
-[tool.pytest.ini_options]
-markers = ["slow: real-model-architecture checks on CPU (minutes)"]
-filterwarnings = ["ignore::DeprecationWarning"]

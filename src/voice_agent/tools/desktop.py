@@ -3,7 +3,7 @@
   WindowsDesktop  native Windows (the main target): launch apps, manage windows,
                   find buttons (UI Automation), media keys
   X11Desktop      Linux X11, used to test the same tools on a virtual desktop
-  DryRunDesktop   records every action and touches nothing (tests, `agent-test`)
+  DryRunDesktop   records every action and touches nothing (`agent-test`, tools.desktop: dry-run)
 
 Shared code: screenshots (mss), mouse and keyboard (pyautogui, loaded only when used),
 pasting Arabic text through the clipboard (pyautogui types ASCII only), opening the browser.
@@ -87,7 +87,7 @@ class Window:
 class Desktop(ABC):
     screenshots_dir: Path = field(default_factory=lambda: Path.home() / "Pictures" / "HAZEM")
     browser: str = "chrome"
-    actions: list = field(default_factory=list)       # log of what was done (shown in the UI / tests)
+    actions: list = field(default_factory=list)       # log of what was done (shown in the UI)
     _last_target: Window | None = None
 
     name = "abstract"
@@ -843,7 +843,7 @@ def _detached_io() -> dict:
 # --------------------------------------------------------------------------- dry run
 
 class DryRunDesktop(Desktop):
-    """Does nothing, records everything. For tests and LLM tool-choice checks."""
+    """Does nothing, records everything. For dry runs and LLM tool-choice checks."""
 
     name = "dry-run"
 

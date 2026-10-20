@@ -1,4 +1,4 @@
-"""Test TTS: a short beep per word. No model, no GPU. Used by tests and dry runs.
+"""Tone TTS: a short beep per word. No model, no GPU. For dry runs (tts.engine: tone).
 
 `delay_s` adds a delay per word, to test latency and cancellation.
 """
@@ -21,7 +21,6 @@ class ToneEngine:
     def __init__(self, delay_s: float = 0.0):
         self.delay_s = delay_s
         self._cancel = threading.Event()
-        self.calls: list[str] = []      # texts synthesized (for tests)
         self.cancelled = 0              # times a synthesis stopped early
 
     def load(self, voices: dict[str, Voice]) -> None:
@@ -37,7 +36,6 @@ class ToneEngine:
         self._cancel.clear()
 
     def synthesize(self, text: str, voice: Voice) -> Iterator[np.ndarray]:
-        self.calls.append(text)
         freq = 440.0 if voice.gender == "female" else 220.0
         t = np.arange(int(0.12 * self.sample_rate)) / self.sample_rate
         beep = (0.2 * np.sin(2 * np.pi * freq * t)).astype(np.float32)

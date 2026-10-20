@@ -131,10 +131,6 @@ class SpeechChunker:
             return [rest]
         return []
 
-    def reset(self) -> None:
-        """Drop pending text (barge-in)."""
-        self.buf, self.emitted, self._first_words = "", 0, 0
-
     # --------------------------------------------------------------- internals
 
     def _next(self) -> str | None:
@@ -203,7 +199,7 @@ class SpeechChunker:
 
 
 def chunk_text(text: str, cfg: ChunkerCfg | None = None, step: int = 3, language: str = "en") -> list[str]:
-    """Feed text in small deltas like a token stream (for tests/CLI)."""
+    """Feed text in small deltas like a token stream (for chunk-test)."""
     ch = SpeechChunker(cfg, language)
     out: list[str] = []
     for i in range(0, len(text), step):

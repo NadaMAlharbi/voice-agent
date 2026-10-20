@@ -125,13 +125,13 @@ tools:
   allow_power: true          # shutdown/restart always ask "yes or no" first
   max_steps: 4
   home_city: ""              # weather: city used when you do not say one (e.g. Riyadh)
-  # File tools through the official Filesystem MCP server (needs Node.js; see PROJECT_GUIDE.md).
+  # File tools through the official Filesystem MCP server (needs Node.js; see README.md, File tools).
   # Only this folder can be used. Writing, editing, moving and deleting ask "yes or no" first.
   files:
     enabled: true
     root: ~/Documents/HAZEM
     command: [npx, -y, --prefer-offline, "@modelcontextprotocol/server-filesystem@2026.8.31"]
-  # Tools from other projects through MCP (see docs/MCP_GUIDE.md). One entry per server.
+  # Tools from other projects through MCP (see MCP_GUIDE.md). One entry per server.
   # Each server runs as a child process (stdio). Its tools appear to the LLM as <name>__<tool>.
   # Remove an entry or set enabled: false to turn a server off. No code change is needed.
   mcp_wait_s: 15             # startup waits this long for the servers before warming the LLM

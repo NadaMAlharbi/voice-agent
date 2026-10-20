@@ -90,7 +90,7 @@ def check_driver() -> Check:
 # ---------------------------------------------------------------- torch / GPU
 
 def check_torch_gpu(torch: ModuleType, gpu_index: int = 0) -> list[Check]:
-    """All GPU checks. Takes the torch module so tests can pass a fake."""
+    """All GPU checks. Takes the torch module as an argument."""
     checks = [Check("PyTorch", PASS, f"{torch.__version__}, CUDA runtime {torch.version.cuda}")]
 
     if torch.version.cuda is None:

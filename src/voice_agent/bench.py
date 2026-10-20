@@ -5,7 +5,6 @@ time and audio plays in real time.
 
   uv run latency-bench           # simulated LLM + simulated TTS speed (no GPU, no models)
   uv run latency-bench --real    # real Ollama + real Kokoro/XTTS on your machine
-  uv run latency-bench --e2e     # whole pipeline: end of speech -> first audio (see e2e_bench.py)
 
 Per reply: first audio (ms after the LLM request), first-chunk words, and silence gaps.
 A per-chunk timeline is printed for replies with a gap (or for all with --timeline).
@@ -208,18 +207,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--piece-s", type=float, default=0.0, help="sim: stream pieces of this length (0 = whole chunk)")
     ap.add_argument("--rounds", type=int, default=1, help="repeat all replies N times")
     ap.add_argument("--timeline", action="store_true", help="per-chunk timeline of every reply")
-    ap.add_argument("--e2e", action="store_true", help="end of speech -> first audio, through the pipeline")
-    ap.add_argument("--url", default=None, help="--e2e: a running server (real models)")
-    ap.add_argument("--include-commands", action="store_true", help="--e2e --url: also play command clips")
-    ap.add_argument("--only", default="", help="--e2e: clip names to run, comma separated")
-    ap.add_argument("--stop-secs", type=float, default=None, help="--e2e: override turn.stop_secs")
-    ap.add_argument("--tail-s", type=float, default=4.0, help="--e2e: silence after each clip")
-    ap.add_argument("--json", default=None, help="--e2e: save results to this file")
     args = ap.parse_args(argv)
-    if args.e2e:
-        from voice_agent import e2e_bench
-
-        return e2e_bench.main(args)
     return asyncio.run(_run(args))
 
 
