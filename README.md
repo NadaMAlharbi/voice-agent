@@ -265,10 +265,3 @@ native Arabic speakers, so a slight accent is expected.
 | Desktop tools do nothing | The startup log line `tools: desktop=...` must say `windows` |
 | An MCP server does not start | Run `uv run mcp-test <name>` and see [MCP_GUIDE.md](MCP_GUIDE.md) |
 
-## Limitations
-
-- Arabic and English only. Arabic replies are in Modern Standard Arabic.
-- Built for native Windows. On Linux the desktop tools work only partly.
-- No live data (news, prices, sports) except the weather tool.
-- Google Calendar support only opens the calendar and a pre-filled new event.
-- XTTS-v2 is for non-commercial use only.
