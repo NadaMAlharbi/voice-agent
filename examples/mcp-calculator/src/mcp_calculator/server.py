@@ -1,19 +1,6 @@
-"""A minimal MCP server: one tool, add_numbers, over stdio.
+"""Calculator MCP server for the HAZEM voice agent.
+This is a simple example of an MCP server with one tool, add_numbers, which adds two numbers. It is a template for independent projects."""
 
-Run it by hand (it waits for JSON-RPC messages on stdin; Ctrl+C to stop):
-    uv run --directory examples/mcp-calculator mcp-calculator
-
-Test it without HAZEM (opens a web page to list and call the tools; needs Node.js):
-    npx @modelcontextprotocol/inspector uv run --directory examples/mcp-calculator mcp-calculator
-
-Rules for stdio servers:
-  - stdout carries the protocol. Never print() to stdout; log to stderr instead.
-  - For a failure you expect (bad input), raise ToolError("reason"). The caller gets
-    isError=true and your reason. Any other exception is treated as a crash: the caller
-    only sees "Error executing tool add_numbers" and the traceback goes to stderr.
-  - Return a TypedDict (or pydantic model): the SDK then publishes an output schema
-    and sends the result as structuredContent (JSON) as well as text.
-"""
 
 from __future__ import annotations
 

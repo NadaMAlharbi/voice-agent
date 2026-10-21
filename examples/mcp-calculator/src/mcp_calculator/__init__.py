@@ -1,1 +1,1 @@
-"""Example MCP server for the HAZEM voice agent."""
+"""Calculator MCP server for the HAZEM voice agent."""

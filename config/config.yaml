@@ -21,7 +21,7 @@ vad:
   confidence: 0.7     # Minimum confidence that audio contains speech
   start_secs: 0.2     # How long speech must last to start detection
   stop_secs: 0.2      # Silence duration before checking if the user is done
-  min_volume: 0.72    # Loudness 0..1 (0.72 = -38 LUFS). Higher ignores far voices; lower hears quiet voices.
+  min_volume: 0.72    # Loudness 0..1 (0.72 = -38 LUFS). Higher ignores far voices; lower hears quiet voices. #0.76
                       # The browser log shows your voice level ("voice -27 LUFS") to tune this.
 
 # Detects when the user finishes speaking
@@ -110,7 +110,7 @@ barge_in:
   min_speech_s: 0.6       # Ignores short noises and coughs
   echo_threshold: 0.6     # Ignores audio that sounds like the assistant's voice
   max_echo_lag_s: 0.6     # Maximum delay allowed when checking for echo
-  min_volume: 0.74        # Voices quieter than this (far away, TV) do not interrupt a reply
+  min_volume: 0.74        # Voices quieter than this (far away, TV) do not interrupt a reply #0.78
 
 # Handles computer commands using the router or LLM tools.
 tools:
@@ -131,6 +131,9 @@ tools:
     enabled: true
     root: ~/Documents/HAZEM
     command: [npx, -y, --prefer-offline, "@modelcontextprotocol/server-filesystem@2026.8.31"]
+    # cwd: .                 # folder the command runs in (default: this project's folder)
+    # env: {MY_SETTING: "1"} # extra environment variables for the server
+    
   # Tools from other projects through MCP (see MCP_GUIDE.md). One entry per server.
   # Each server runs as a child process (stdio). Its tools appear to the LLM as <name>__<tool>.
   # Remove an entry or set enabled: false to turn a server off. No code change is needed.
@@ -139,11 +142,19 @@ tools:
     calculator:              # example server: examples/mcp-calculator (tool calculator__add_numbers)
       enabled: true
       command: [uv, run, --directory, examples/mcp-calculator, mcp-calculator]
-      # cwd: .                 # folder the command runs in (default: this project's folder)
-      # env: {MY_SETTING: "1"} # extra environment variables for the server
       tools: [add_numbers]     # allow-list; leave out to expose every tool of the server
       confirm: []              # tools that always ask "yes or no" first
       safe: []                 # tools that never ask (default: only tools the server marks read-only)
       timeout_s: 30            # per call
       start_timeout_s: 120     # first start installs the server's packages (needs internet once)
       hint: "To add two numbers with the MCP calculator, use calculator__add_numbers."
+
+
+    notes:              # example server: examples/mcp-notes (tool notes__add_note, notes__list_notes)
+      enabled: true
+      command: [uv, run, --directory, examples/mcp-notes, mcp-notes]
+      tools: [add_note, list_notes]     # allow-list; leave out to expose every tool of the server
+      confirm: [add_note]              # tools that always ask "yes or no" first
+      timeout_s: 20            # per call
+      start_timeout_s: 120     # first start installs the server's packages (needs internet once)
+      hint: "To  save or read user's notes, use notes__add_note and notes__list_notes. Notes are stored in data/notes.md."
